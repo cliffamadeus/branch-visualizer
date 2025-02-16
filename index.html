@@ -12,6 +12,13 @@
             height: 500px;
             border: 1px solid #ddd;
         }
+        .highlight {
+            stroke: rgb(0, 174, 255) !important;
+            stroke-width: 3px !important;
+        }
+        .highlight-node {
+            fill: rgb(0, 174, 255) !important;
+        }
     </style>
 </head>
 <body class="container mt-4">
@@ -53,7 +60,9 @@
                 .call(d3.drag()
                     .on("start", dragStarted)
                     .on("drag", dragged)
-                    .on("end", dragEnded));
+                    .on("end", dragEnded))
+                .on("mouseover", highlightConnected)
+                .on("mouseout", resetHighlight);
 
             const text = svg.selectAll(".text")
                 .data(nodes)
@@ -88,6 +97,30 @@
             }
 
             updateGraph();
+        }
+
+        function highlightConnected(event, d) {
+            const connectedNodes = new Set();
+            const connectedLinks = [];
+            
+            links.forEach(link => {
+                if (link.source.id === d.id) {
+                    connectedNodes.add(link.target.id);
+                    connectedLinks.push(link);
+                }
+                if (link.target.id === d.id) {
+                    connectedNodes.add(link.source.id);
+                    connectedLinks.push(link);
+                }
+            });
+
+            d3.selectAll(".node").filter(n => connectedNodes.has(n.id)).classed("highlight-node", true);
+            d3.selectAll(".link").filter(l => connectedLinks.includes(l)).classed("highlight", true);
+        }
+
+        function resetHighlight() {
+            d3.selectAll(".node").classed("highlight-node", false);
+            d3.selectAll(".link").classed("highlight", false);
         }
 
         function dragStarted(event, d) {
