@@ -29,15 +29,15 @@
             <input type="text" id="linkInput" class="form-control mt-2" placeholder="Link to (optional)">
             <button class="btn btn-primary mt-2" onclick="addNode()">Add Branch</button>
             <button class="btn btn-danger mt-2" onclick="undoLastAction()">Undo</button>
+            <h4 class="mt-3">Active Nodes</h4>
+            <ul id="nodeList" class="list-group"></ul>
         </div>
         <div class="col-sm-8">
             <svg id="graph"></svg>
         </div>
-    </div>                                                      
+    </div>
 
-
-
-    <script>                                                                    
+    <script>
         const nodes = [];
         const links = [];
         const history = [];
@@ -52,13 +52,25 @@
 
         function updateGraph() {
             svg.selectAll("*").remove();
-
+            document.getElementById("nodeList").innerHTML = "";
+            
+            nodes.forEach(node => {
+                const li = document.createElement("li");
+                li.className = "list-group-item d-flex justify-content-between align-items-center";
+                li.innerHTML = `${node.id} 
+                    <span>
+                        <button class='btn btn-sm btn-warning' onclick='editNode("${node.id}")'>Edit</button>
+                        <button class='btn btn-sm btn-danger' onclick='deleteNode("${node.id}")'>Delete</button>
+                    </span>`;
+                document.getElementById("nodeList").appendChild(li);
+            });
+            
             const link = svg.selectAll(".link")
                 .data(links)
                 .enter().append("line")
                 .attr("class", "link")
                 .attr("stroke", "#999");
-
+            
             const node = svg.selectAll(".node")
                 .data(nodes)
                 .enter().append("circle")
@@ -69,14 +81,14 @@
                     .on("start", dragStarted)
                     .on("drag", dragged)
                     .on("end", dragEnded));
-
+            
             const text = svg.selectAll(".text")
                 .data(nodes)
                 .enter().append("text")
                 .text(d => d.id)
                 .attr("dx", 12)
                 .attr("dy", 4);
-
+            
             simulation.nodes(nodes).on("tick", () => {
                 link.attr("x1", d => d.source.x)
                     .attr("y1", d => d.source.y)
@@ -111,20 +123,35 @@
             updateGraph();
         }
 
+        function deleteNode(nodeId) {
+            const nodeIndex = nodes.findIndex(n => n.id === nodeId);
+            if (nodeIndex > -1) {
+                nodes.splice(nodeIndex, 1);
+                links.splice(links.findIndex(l => l.source.id === nodeId || l.target.id === nodeId), 1);
+            }
+            updateGraph();
+        }
+
+        function editNode(nodeId) {
+            const newName = prompt("Enter new name:", nodeId);
+            if (!newName) return;
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) node.id = newName;
+            links.forEach(link => {
+                if (link.source.id === nodeId) link.source.id = newName;
+                if (link.target.id === nodeId) link.target.id = newName;
+            });
+            updateGraph();
+        }
+
         function undoLastAction() {
             if (history.length === 0) return;
-            
             const lastAction = history.pop();
             if (lastAction.newLink) {
-                const linkIndex = links.indexOf(lastAction.newLink);
-                if (linkIndex > -1) links.splice(linkIndex, 1);
+                links.splice(links.indexOf(lastAction.newLink), 1);
             }
             if (lastAction.newNode) {
-                const nodeIndex = nodes.indexOf(lastAction.newNode);
-                if (nodeIndex > -1) {
-                    nodes.splice(nodeIndex, 1);
-                    links.filter(l => l.source.id !== lastAction.newNode.id && l.target.id !== lastAction.newNode.id);
-                }
+                nodes.splice(nodes.indexOf(lastAction.newNode), 1);
             }
             updateGraph();
         }
