@@ -22,16 +22,22 @@
     </style>
 </head>
 <body class="container mt-4">
-    <h2 class="text-center">Knowledge Graph</h2>
-    <div class="mb-3">
-        <input type="text" id="nodeInput" class="form-control" placeholder="Enter a note">
-        <input type="text" id="linkInput" class="form-control mt-2" placeholder="Link to (optional)">
-        <button class="btn btn-primary mt-2" onclick="addNode()">Add Note</button>
-        <button class="btn btn-danger mt-2" onclick="undoLastAction()">Undo</button>
-    </div>
-    <svg id="graph"></svg>
-    
-    <script>
+    <h2 class="text-center">Branch Monitoring</h2>
+    <div class="row">
+        <div class="col-sm-4">
+            <input type="text" id="nodeInput" class="form-control" placeholder="Enter a Branch Name">
+            <input type="text" id="linkInput" class="form-control mt-2" placeholder="Link to (optional)">
+            <button class="btn btn-primary mt-2" onclick="addNode()">Add Branch</button>
+            <button class="btn btn-danger mt-2" onclick="undoLastAction()">Undo</button>
+        </div>
+        <div class="col-sm-8">
+            <svg id="graph"></svg>
+        </div>
+    </div>                                                      
+
+
+
+    <script>                                                                    
         const nodes = [];
         const links = [];
         const history = [];
