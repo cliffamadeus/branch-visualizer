@@ -53,7 +53,7 @@
         function updateGraph() {
             svg.selectAll("*").remove();
             document.getElementById("nodeList").innerHTML = "";
-            
+
             nodes.forEach(node => {
                 const li = document.createElement("li");
                 li.className = "list-group-item d-flex justify-content-between align-items-center";
@@ -64,40 +64,49 @@
                     </span>`;
                 document.getElementById("nodeList").appendChild(li);
             });
-            
+
             const link = svg.selectAll(".link")
                 .data(links)
                 .enter().append("line")
                 .attr("class", "link")
-                .attr("stroke", "#999");
-            
+                .attr("stroke", "#999")
+                .on("mouseover", function(event, d) {
+                    highlightConnectedLinks(d);
+                })
+                .on("mouseout", resetHighlight);
+
             const node = svg.selectAll(".node")
                 .data(nodes)
                 .enter().append("circle")
                 .attr("class", "node")
                 .attr("r", 10)
                 .attr("fill", "#007bff")
+                .on("mouseover", function(event, d) {
+                    highlightConnectedNodes(d);
+                })
+                .on("mouseout", resetHighlight)
                 .call(d3.drag()
                     .on("start", dragStarted)
                     .on("drag", dragged)
                     .on("end", dragEnded));
-            
+
             const text = svg.selectAll(".text")
                 .data(nodes)
                 .enter().append("text")
                 .text(d => d.id)
                 .attr("dx", 12)
                 .attr("dy", 4);
-            
+
             simulation.nodes(nodes).on("tick", () => {
                 link.attr("x1", d => d.source.x)
                     .attr("y1", d => d.source.y)
                     .attr("x2", d => d.target.x)
                     .attr("y2", d => d.target.y);
-                
+
                 node.attr("cx", d => d.x).attr("cy", d => d.y);
                 text.attr("x", d => d.x).attr("y", d => d.y);
             });
+
             simulation.force("link").links(links);
             simulation.alpha(1).restart();
         }
@@ -115,10 +124,10 @@
                 nodes.push(newNode);
             }
             if (linkName && nodes.some(n => n.id === linkName)) {
-                newLink = { source: linkName, target: nodeName };
+                newLink = { source: nodes.find(n => n.id === linkName), target: nodes.find(n => n.id === nodeName) };
                 links.push(newLink);
             }
-            
+
             history.push({ newNode, newLink });
             updateGraph();
         }
@@ -127,7 +136,7 @@
             const nodeIndex = nodes.findIndex(n => n.id === nodeId);
             if (nodeIndex > -1) {
                 nodes.splice(nodeIndex, 1);
-                links.splice(links.findIndex(l => l.source.id === nodeId || l.target.id === nodeId), 1);
+                links.splice(0, links.length, ...links.filter(l => l.source.id !== nodeId && l.target.id !== nodeId));
             }
             updateGraph();
         }
@@ -135,23 +144,28 @@
         function editNode(nodeId) {
             const newName = prompt("Enter new branch name:", nodeId);
             if (!newName) return;
+
             const node = nodes.find(n => n.id === nodeId);
-            if (node) node.id = newName;
-            links.forEach(link => {
-                if (link.source.id === nodeId) link.source.id = newName;
-                if (link.target.id === nodeId) link.target.id = newName;
-            });
+            if (node) {
+                node.id = newName;
+                links.forEach(link => {
+                    if (link.source.id === nodeId) link.source = node;
+                    if (link.target.id === nodeId) link.target = node;
+                });
+            }
             updateGraph();
         }
 
         function undoLastAction() {
             if (history.length === 0) return;
             const lastAction = history.pop();
+
             if (lastAction.newLink) {
                 links.splice(links.indexOf(lastAction.newLink), 1);
             }
             if (lastAction.newNode) {
-                nodes.splice(nodes.indexOf(lastAction.newNode), 1);
+                nodes.splice(nodes.findIndex(n => n.id === lastAction.newNode.id), 1);
+                links.splice(0, links.length, ...links.filter(l => l.source.id !== lastAction.newNode.id && l.target.id !== lastAction.newNode.id));
             }
             updateGraph();
         }
@@ -171,6 +185,39 @@
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
+        }
+
+        function highlightConnectedNodes(d) {
+            const connectedNodes = new Set();
+            const connectedLinks = [];
+
+            links.forEach(link => {
+                if (link.source.id === d.id) {
+                    connectedNodes.add(link.target.id);
+                    connectedLinks.push(link);
+                }
+                if (link.target.id === d.id) {
+                    connectedNodes.add(link.source.id);
+                    connectedLinks.push(link);
+                }
+            });
+
+            d3.selectAll(".node").filter(n => connectedNodes.has(n.id)).classed("highlight-node", true);
+            d3.selectAll(".link").filter(l => connectedLinks.includes(l)).classed("highlight", true);
+        }
+
+        function highlightConnectedLinks(d) {
+            const connectedNodes = new Set();
+            connectedNodes.add(d.source.id);
+            connectedNodes.add(d.target.id);
+
+            d3.selectAll(".node").filter(n => connectedNodes.has(n.id)).classed("highlight-node", true);
+            d3.select(this).classed("highlight", true);
+        }
+
+        function resetHighlight() {
+            d3.selectAll(".node").classed("highlight-node", false);
+            d3.selectAll(".link").classed("highlight", false);
         }
     </script>
 </body>
