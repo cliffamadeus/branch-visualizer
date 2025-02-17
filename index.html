@@ -27,12 +27,14 @@
         <input type="text" id="nodeInput" class="form-control" placeholder="Enter a note">
         <input type="text" id="linkInput" class="form-control mt-2" placeholder="Link to (optional)">
         <button class="btn btn-primary mt-2" onclick="addNode()">Add Note</button>
+        <button class="btn btn-danger mt-2" onclick="undoLastAction()">Undo</button>
     </div>
     <svg id="graph"></svg>
     
     <script>
         const nodes = [];
         const links = [];
+        const history = [];
         const width = document.getElementById("graph").clientWidth;
         const height = 500;
 
@@ -60,9 +62,7 @@
                 .call(d3.drag()
                     .on("start", dragStarted)
                     .on("drag", dragged)
-                    .on("end", dragEnded))
-                .on("mouseover", highlightConnected)
-                .on("mouseout", resetHighlight);
+                    .on("end", dragEnded));
 
             const text = svg.selectAll(".text")
                 .data(nodes)
@@ -76,7 +76,7 @@
                     .attr("y1", d => d.source.y)
                     .attr("x2", d => d.target.x)
                     .attr("y2", d => d.target.y);
-
+                
                 node.attr("cx", d => d.x).attr("cy", d => d.y);
                 text.attr("x", d => d.x).attr("y", d => d.y);
             });
@@ -89,38 +89,38 @@
             const linkName = document.getElementById("linkInput").value.trim();
             if (!nodeName) return;
 
+            let newNode = null;
+            let newLink = null;
+
             if (!nodes.some(n => n.id === nodeName)) {
-                nodes.push({ id: nodeName });
+                newNode = { id: nodeName };
+                nodes.push(newNode);
             }
             if (linkName && nodes.some(n => n.id === linkName)) {
-                links.push({ source: linkName, target: nodeName });
+                newLink = { source: linkName, target: nodeName };
+                links.push(newLink);
             }
-
+            
+            history.push({ newNode, newLink });
             updateGraph();
         }
 
-        function highlightConnected(event, d) {
-            const connectedNodes = new Set();
-            const connectedLinks = [];
+        function undoLastAction() {
+            if (history.length === 0) return;
             
-            links.forEach(link => {
-                if (link.source.id === d.id) {
-                    connectedNodes.add(link.target.id);
-                    connectedLinks.push(link);
+            const lastAction = history.pop();
+            if (lastAction.newLink) {
+                const linkIndex = links.indexOf(lastAction.newLink);
+                if (linkIndex > -1) links.splice(linkIndex, 1);
+            }
+            if (lastAction.newNode) {
+                const nodeIndex = nodes.indexOf(lastAction.newNode);
+                if (nodeIndex > -1) {
+                    nodes.splice(nodeIndex, 1);
+                    links.filter(l => l.source.id !== lastAction.newNode.id && l.target.id !== lastAction.newNode.id);
                 }
-                if (link.target.id === d.id) {
-                    connectedNodes.add(link.source.id);
-                    connectedLinks.push(link);
-                }
-            });
-
-            d3.selectAll(".node").filter(n => connectedNodes.has(n.id)).classed("highlight-node", true);
-            d3.selectAll(".link").filter(l => connectedLinks.includes(l)).classed("highlight", true);
-        }
-
-        function resetHighlight() {
-            d3.selectAll(".node").classed("highlight-node", false);
-            d3.selectAll(".link").classed("highlight", false);
+            }
+            updateGraph();
         }
 
         function dragStarted(event, d) {
